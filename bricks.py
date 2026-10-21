@@ -7,6 +7,7 @@ import pygame
 
 from settings import (
     BRICK_COLORS,
+    CENTER_GAP,
     BRICK_GAP,
     BRICK_HEIGHT,
     BRICK_WIDTH,
@@ -15,6 +16,21 @@ from settings import (
 )
 
 LAYOUT_FILE = Path(__file__).with_name("layouts.json")
+
+
+class Brick:
+    """A brick with a position and a number of hits remaining."""
+
+    def __init__(self, rectangle, health):
+        self.rect = rectangle
+        self.health = health
+
+    def hit(self):
+        self.health -= 1
+
+    @property
+    def destroyed(self):
+        return self.health <= 0
 
 
 def load_layouts():
@@ -47,22 +63,24 @@ def make_bricks(layout_index=0):
 
     formation_width = columns * BRICK_WIDTH + (columns - 1) * BRICK_GAP
     formation_height = rows * BRICK_HEIGHT + (rows - 1) * BRICK_GAP
-    center_gap = 48
-    left_start_x = WIDTH // 2 - center_gap // 2 - formation_width
-    right_start_x = WIDTH // 2 + center_gap // 2
+    left_start_x = WIDTH // 2 - CENTER_GAP // 2 - formation_width
+    right_start_x = WIDTH // 2 + CENTER_GAP // 2
     start_y = (HEIGHT - formation_height) // 2
     bricks = []
 
     for row, pattern_row in enumerate(pattern):
         for column, cell in enumerate(pattern_row):
             if cell not in ("0", "."):
+                health = int(cell)
+                if health < 1:
+                    continue
                 x = left_start_x + column * (BRICK_WIDTH + BRICK_GAP)
                 y = start_y + row * (BRICK_HEIGHT + BRICK_GAP)
-                bricks.append(pygame.Rect(x, y, BRICK_WIDTH, BRICK_HEIGHT))
+                bricks.append(Brick(pygame.Rect(x, y, BRICK_WIDTH, BRICK_HEIGHT), health))
 
                 mirror_column = columns - 1 - column
                 mirror_x = right_start_x + mirror_column * (BRICK_WIDTH + BRICK_GAP)
-                bricks.append(pygame.Rect(mirror_x, y, BRICK_WIDTH, BRICK_HEIGHT))
+                bricks.append(Brick(pygame.Rect(mirror_x, y, BRICK_WIDTH, BRICK_HEIGHT), health))
 
     return bricks
 
@@ -77,6 +95,6 @@ def layout_count():
 
 
 def draw_bricks(screen, brick_list):
-    for index, brick in enumerate(brick_list):
-        color = BRICK_COLORS[index % len(BRICK_COLORS)]
-        pygame.draw.rect(screen, color, brick, border_radius=4)
+    for brick in brick_list:
+        color_index = min(brick.health, len(BRICK_COLORS)) - 1
+        pygame.draw.rect(screen, BRICK_COLORS[color_index], brick.rect, border_radius=4)

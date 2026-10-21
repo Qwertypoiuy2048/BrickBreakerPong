@@ -4,8 +4,8 @@ A two-player brick-breaker/Pong prototype built with Pygame.
 
 The project is split into `main.py` for the game loop, `ball.py` for ball
 movement/collisions, `bricks.py` for the mirrored brick formations, and
-`settings.py` for shared constants. Brick formations are defined in
-`layouts.json`.
+`settings.py` for shared constants. Brick formations and their health values
+are defined in `layouts.json`.
 
 ## Run it
 
@@ -38,7 +38,12 @@ there until `Space` or `Enter` is pressed.
 Each match is first to two round wins. Clearing a layout wins the round and
 loads the next layout from `layouts.json`. To add a layout, add another object
 with a `name` and a rectangular `pattern`; `1` creates a brick and `0` or `.`
-leaves a space. The pattern is automatically mirrored for the other side.
+leaves a space. Higher values such as `2` or `3` give a brick more health and
+change its color. The current layouts use `1`, so all bricks are red. The
+pattern is automatically mirrored for the other side.
+
+The visible player scores reset when a new round begins. The round-win tally
+shown at the top continues across the match.
 
 The last player to hit the ball is shown at the bottom. Only that player can
 destroy bricks and receive their points. A ball served from a paddle is marked

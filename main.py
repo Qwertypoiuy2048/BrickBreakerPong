@@ -65,7 +65,7 @@ def move_paddles(left_paddle, right_paddle, keys, dt, one_player):
 
 def move_ai(right_paddle, ball, dt):
     if right_paddle.centery < ball.centery:
-        right_paddle.y += round(PADDLE_SPEED * 0.72 * dt)
+        right_paddle.y += round(PADDLE_SPEED * AI_SPEED_FACTOR * dt)
     elif right_paddle.centery > ball.centery:
         right_paddle.y -= round(PADDLE_SPEED * 0.72 * dt)
     right_paddle.clamp_ip(pygame.Rect(0, 0, WIDTH, HEIGHT))
@@ -206,20 +206,22 @@ def main():
                     last_hit = "P2"
 
                 for brick in bricks[:]:
-                    if ball.colliderect(brick):
-                        bounce_off_brick(ball, ball_velocity, brick, previous_ball)
+                    if ball.colliderect(brick.rect):
+                        bounce_off_brick(ball, ball_velocity, brick.rect, previous_ball)
                         if last_hit != "START":
-                            bricks.remove(brick)
-                            scores[0 if last_hit == "P1" else 1] += 10
+                            brick.hit()
+                            if brick.destroyed:
+                                bricks.remove(brick)
+                                scores[0 if last_hit == "P1" else 1] += ROUND_BRICK_POINTS
                         break
 
                 if ball.right < 0:
-                    scores[1] += 25
+                    scores[1] += MISS_POINTS
                     ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
                     last_hit = "START"
                     mode = SERVE
                 elif ball.left > WIDTH:
-                    scores[0] += 25
+                    scores[0] += MISS_POINTS
                     ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
                     last_hit = "START"
                     mode = SERVE
@@ -232,6 +234,7 @@ def main():
                     else:
                         round_number += 1
                         current_layout = (current_layout + 1) % layout_count()
+                        scores = [0, 0]
                         left_paddle, right_paddle = create_paddles()
                         bricks = make_bricks(current_layout)
                         ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
