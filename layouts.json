@@ -1,0 +1,36 @@
+{
+  "layouts": [
+    {
+      "name": "Twin Towers",
+      "pattern": [
+        "1111",
+        "1111",
+        "1111"
+      ]
+    },
+    {
+      "name": "Twin Gates",
+      "pattern": [
+        "1001",
+        "1111",
+        "1001"
+      ]
+    },
+    {
+      "name": "Twin Diamonds",
+      "pattern": [
+        "0110",
+        "1111",
+        "0110"
+      ]
+    },
+    {
+      "name": "Twin Steps",
+      "pattern": [
+        "1100",
+        "1110",
+        "1111"
+      ]
+    }
+  ]
+}
