@@ -35,6 +35,14 @@ def navigation_delta(key):
     return 0
 
 
+def adjustment_delta(key):
+    if key in (pygame.K_LEFT, pygame.K_a):
+        return -1
+    if key in (pygame.K_RIGHT, pygame.K_d):
+        return 1
+    return 0
+
+
 def create_paddles():
     left = pygame.Rect(35, HEIGHT // 2 - PADDLE_HEIGHT // 2, PADDLE_WIDTH, PADDLE_HEIGHT)
     right = pygame.Rect(
@@ -103,8 +111,17 @@ def move_ai(right_paddle, ball, dt):
     return (right_paddle.y - previous_y) / max(dt, 0.0001)
 
 
-def bounce_off_paddle(ball, ball_velocity, paddle, paddle_velocity_y, ball_spin, direction):
-    """Apply hit-position bounce, paddle movement, and transferable spin."""
+def bounce_off_paddle(
+    ball,
+    ball_velocity,
+    paddle,
+    paddle_velocity_y,
+    ball_spin,
+    direction,
+    spin_mode,
+    max_vertical_speed,
+):
+    """Apply the selected combination of position bounce and spin."""
     if direction > 0:
         ball.left = paddle.right
         ball_velocity.x = abs(ball_velocity.x)
@@ -113,14 +130,27 @@ def bounce_off_paddle(ball, ball_velocity, paddle, paddle_velocity_y, ball_spin,
         ball_velocity.x = -abs(ball_velocity.x)
 
     hit_offset = ball.centery - paddle.centery
-    ball_spin += paddle_velocity_y * SPIN_TRANSFER
+    position_bounce = hit_offset * 5
+    movement_bounce = paddle_velocity_y * PADDLE_BOUNCE_INFLUENCE
+    incoming_vertical_speed = ball_velocity.y
+
+    if spin_mode in ("Spin", "Both"):
+        ball_spin += paddle_velocity_y * SPIN_TRANSFER
+    else:
+        ball_spin = 0
     ball_spin = max(-MAX_SPIN, min(MAX_SPIN, ball_spin))
-    ball_velocity.y = (
-        hit_offset * 5
-        + paddle_velocity_y * PADDLE_BOUNCE_INFLUENCE
-        + ball_spin * SPIN_BOUNCE_INFLUENCE
-    )
-    ball_velocity.y = max(-MAX_VERTICAL_SPEED, min(MAX_VERTICAL_SPEED, ball_velocity.y))
+    if spin_mode == "Position":
+        ball_velocity.y = position_bounce
+    elif spin_mode == "Spin":
+        ball_velocity.y = ((
+            incoming_vertical_speed
+            + movement_bounce
+            + ball_spin * SPIN_BOUNCE_INFLUENCE
+            ) * 0.98 # resistance
+        )
+    else:
+        ball_velocity.y = position_bounce + movement_bounce + ball_spin * SPIN_BOUNCE_INFLUENCE
+    ball_velocity.y = max(-max_vertical_speed, min(max_vertical_speed, ball_velocity.y))
     return ball_spin
 
 
@@ -188,7 +218,7 @@ def draw_game(
         draw_text(screen, ui_font, "Arrow keys / W A S D to move   Space to select", (WIDTH // 2, HEIGHT // 2 + 135), MUTED, center=True)
 
 
-def draw_menu(screen, title_font, ui_font, menu_selection, menu_notice):
+def draw_menu(screen, title_font, ui_font, menu_selection, menu_notice, rounds_to_win):
     screen.fill(BACKGROUND)
     draw_text(screen, title_font, "BRICK BREAKER PONG", (WIDTH // 2, 150), center=True)
     draw_text(screen, ui_font, "Choose an option", (WIDTH // 2, 245), MUTED, center=True)
@@ -196,11 +226,23 @@ def draw_menu(screen, title_font, ui_font, menu_selection, menu_notice):
     draw_option(screen, ui_font, "Two Players", 335, menu_selection == 1, PLAYER_TWO_COLOR)
     draw_option(screen, ui_font, "Settings", 375, menu_selection == 2, WHITE)
     draw_option(screen, ui_font, "Controls", 415, menu_selection == 3, WHITE)
-    draw_text(screen, ui_font, f"First to {ROUNDS_TO_WIN} rounds  |  {layout_count()} randomized layouts", (WIDTH // 2, 475), MUTED, center=True)
+    draw_text(screen, ui_font, f"First to {rounds_to_win} rounds  |  {layout_count()} randomized layouts", (WIDTH // 2, 475), MUTED, center=True)
     if menu_notice:
         draw_text(screen, ui_font, menu_notice, (WIDTH // 2, 510), PLAYER_TWO_COLOR, center=True)
     draw_text(screen, ui_font, "Arrow keys / W A S D to move   Space to select", (WIDTH // 2, 565), MUTED, center=True)
     draw_text(screen, ui_font, "Escape: quit", (WIDTH // 2, 600), MUTED, center=True)
+
+
+def draw_settings_screen(screen, title_font, ui_font, menu_selection, rounds_to_win, ball_speed_index, spin_mode_index):
+    screen.fill(BACKGROUND)
+    draw_text(screen, title_font, "SETTINGS", (WIDTH // 2, 105), center=True)
+    draw_option(screen, ui_font, f"Rounds to win: {rounds_to_win}", 210, menu_selection == 0, WHITE)
+    draw_option(screen, ui_font, f"Ball speed: {BALL_SPEED_NAMES[ball_speed_index]}", 270, menu_selection == 1, WHITE)
+    draw_option(screen, ui_font, f"Bounce style: {SPIN_MODE_NAMES[spin_mode_index]}", 330, menu_selection == 2, WHITE)
+    draw_option(screen, ui_font, "Restore defaults", 405, menu_selection == 3, WHITE)
+    draw_option(screen, ui_font, "Back to main menu", 455, menu_selection == 4, WHITE)
+    draw_text(screen, ui_font, "Arrow keys / W A S D: move    A/D or Left/Right: change    Space: select", (WIDTH // 2, 540), MUTED, center=True)
+    draw_text(screen, ui_font, "Escape: back to main menu", (WIDTH // 2, 575), MUTED, center=True)
 
 
 def main():
@@ -228,6 +270,10 @@ def main():
     one_player = False
     menu_selection = 0
     menu_notice = ""
+    rounds_to_win = ROUND_OPTIONS[DEFAULT_ROUNDS_INDEX]
+    ball_speed_index = DEFAULT_BALL_SPEED_INDEX
+    ball_speed = BALL_SPEED_VALUES[ball_speed_index]
+    spin_mode_index = DEFAULT_SPIN_MODE_INDEX
     running = True
 
     while running:
@@ -265,12 +311,35 @@ def main():
                         menu_selection = 0
                         menu_notice = ""
                     elif menu_selection == 2:
-                        menu_notice = "Settings will be available in a future update."
+                        mode = SETTINGS
+                        menu_selection = 0
+                        menu_notice = ""
                     else:
                         menu_notice = "Controls will be available in a future update."
+                elif mode == SETTINGS and navigation_delta(event.key):
+                    menu_selection = (menu_selection + navigation_delta(event.key)) % 5
+                elif mode == SETTINGS and adjustment_delta(event.key):
+                    change = adjustment_delta(event.key)
+                    if menu_selection == 0:
+                        rounds_index = ROUND_OPTIONS.index(rounds_to_win)
+                        rounds_to_win = ROUND_OPTIONS[(rounds_index + change) % len(ROUND_OPTIONS)]
+                    elif menu_selection == 1:
+                        ball_speed_index = (ball_speed_index + change) % len(BALL_SPEED_VALUES)
+                        ball_speed = BALL_SPEED_VALUES[ball_speed_index]
+                    elif menu_selection == 2:
+                        spin_mode_index = (spin_mode_index + change) % len(SPIN_MODE_NAMES)
+                elif mode == SETTINGS and event.key == pygame.K_SPACE:
+                    if menu_selection == 3:
+                        rounds_to_win = ROUND_OPTIONS[DEFAULT_ROUNDS_INDEX]
+                        ball_speed_index = DEFAULT_BALL_SPEED_INDEX
+                        ball_speed = BALL_SPEED_VALUES[ball_speed_index]
+                        spin_mode_index = DEFAULT_SPIN_MODE_INDEX
+                    elif menu_selection == 4:
+                        mode = MENU
+                        menu_selection = 2
                 elif mode == SERVE and event.key in (pygame.K_SPACE, pygame.K_RETURN):
-                    ball_velocity.x = BALL_SPEED if server == 0 else -BALL_SPEED
-                    ball_velocity.y = random.choice((-1, 1)) * BALL_SPEED * 0.65
+                    ball_velocity.x = ball_speed if server == 0 else -ball_speed
+                    ball_velocity.y = random.choice((-1, 1)) * ball_speed * 0.65
                     ball_spin = 0
                     mode = PLAYING
                 elif mode == PLAYING and event.key == pygame.K_p:
@@ -297,7 +366,7 @@ def main():
                     elif event.key == pygame.K_p:
                         mode = PLAYING
                 elif mode == ROUND_OVER and event.key == pygame.K_SPACE:
-                    if round_winner is not None and round_wins[round_winner] >= ROUNDS_TO_WIN:
+                    if round_winner is not None and round_wins[round_winner] >= rounds_to_win:
                         mode = MATCH_OVER
                         menu_selection = 0
                     else:
@@ -356,7 +425,8 @@ def main():
                 ball.y += round(ball_velocity.y * dt)
                 ball_spin *= SPIN_DECAY ** (dt * FPS)
                 ball_velocity.y += ball_spin * SPIN_ACCELERATION * dt
-                ball_velocity.y = max(-MAX_VERTICAL_SPEED, min(MAX_VERTICAL_SPEED, ball_velocity.y))
+                max_vertical_speed = ball_speed * 1.5
+                ball_velocity.y = max(-max_vertical_speed, min(max_vertical_speed, ball_velocity.y))
 
                 if ball.top <= 0 or ball.bottom >= HEIGHT:
                     ball_velocity.y *= -1
@@ -364,12 +434,14 @@ def main():
 
                 if ball_velocity.x < 0 and ball.colliderect(left_paddle):
                     ball_spin = bounce_off_paddle(
-                        ball, ball_velocity, left_paddle, left_paddle_velocity_y, ball_spin, 1
+                        ball, ball_velocity, left_paddle, left_paddle_velocity_y, ball_spin, 1,
+                        SPIN_MODE_NAMES[spin_mode_index], max_vertical_speed
                     )
                     last_hit = "P1"
                 elif ball_velocity.x > 0 and ball.colliderect(right_paddle):
                     ball_spin = bounce_off_paddle(
-                        ball, ball_velocity, right_paddle, right_paddle_velocity_y, ball_spin, -1
+                        ball, ball_velocity, right_paddle, right_paddle_velocity_y, ball_spin, -1,
+                        SPIN_MODE_NAMES[spin_mode_index], max_vertical_speed
                     )
                     last_hit = "P2"
 
@@ -402,7 +474,9 @@ def main():
                     mode = ROUND_OVER
 
         if mode == MENU:
-            draw_menu(screen, title_font, ui_font, menu_selection, menu_notice)
+            draw_menu(screen, title_font, ui_font, menu_selection, menu_notice, rounds_to_win)
+        elif mode == SETTINGS:
+            draw_settings_screen(screen, title_font, ui_font, menu_selection, rounds_to_win, ball_speed_index, spin_mode_index)
         else:
             draw_game(screen, score_font, ui_font, title_font, left_paddle, right_paddle, ball, bricks, scores, round_wins, round_number, last_hit, mode, server, current_layout, round_winner, menu_selection)
 

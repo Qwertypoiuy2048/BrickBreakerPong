@@ -25,6 +25,7 @@ python main.py
 
 - Menus: Arrow keys or `WASD` move the pointer, `Space` selects
 - Main menu: `Settings` and `Controls` are selectable placeholders for future features
+- Settings: use Left/Right or `A/D` to change the selected value; `Space` activates buttons
 - Player 1: `W` / `S`
 - Player 2: Arrow `Up` / `Down` (two-player mode)
 - `Space` or `Enter`: launch the ball from the serve
@@ -36,6 +37,11 @@ python main.py
 
 Pressing `Escape` during gameplay or on an overlay returns to the main menu.
 Pressing it on the main menu exits the game.
+
+Current settings include rounds to win (`1`, `2`, `3`, `4`, `5`, or `10`), five
+ball-speed levels, and bounce style. `Position` uses only the paddle hit
+location, `Spin` ignores hit location and uses paddle movement plus transferable
+spin, and `Both` combines position, movement, and spin.
 
 The game starts at a mode-selection menu. In one-player mode, Player 2 is
 controlled by a simple computer opponent. Each serve places the ball on the
