@@ -200,6 +200,7 @@ def main():
     ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
     ball_spin = 0
     last_hit = "START"
+    round_winner = None
     mode = MENU
     one_player = False
     running = True
@@ -225,16 +226,63 @@ def main():
                     bricks = make_bricks(current_layout)
                     ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
                     last_hit = "START"
+                    round_winner = None
                     mode = SERVE
                 elif mode == SERVE and event.key in (pygame.K_SPACE, pygame.K_RETURN):
                     ball_velocity.x = BALL_SPEED if server == 0 else -BALL_SPEED
                     ball_velocity.y = random.choice((-1, 1)) * BALL_SPEED * 0.65
                     ball_spin = 0
                     mode = PLAYING
-                elif mode == MATCH_OVER and event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_r):
-                    mode = MENU
-                elif mode in (SERVE, PLAYING) and event.key == pygame.K_r:
-                    mode = MENU
+                elif mode == PLAYING and event.key == pygame.K_p:
+                    mode = PAUSED
+                elif mode == PAUSED:
+                    if event.key in (pygame.K_p, pygame.K_SPACE):
+                        mode = PLAYING
+                    elif event.key == pygame.K_r:
+                        scores = [0, 0]
+                        left_paddle, right_paddle = create_paddles()
+                        bricks = make_bricks(current_layout)
+                        ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+                        ball_spin = 0
+                        last_hit = "START"
+                        mode = SERVE
+                    elif event.key == pygame.K_m:
+                        mode = MENU
+                elif mode == ROUND_OVER and event.key in (pygame.K_n, pygame.K_SPACE, pygame.K_RETURN):
+                    if round_winner is not None and round_wins[round_winner] >= ROUNDS_TO_WIN:
+                        mode = MATCH_OVER
+                    else:
+                        round_number += 1
+                        layout_position += 1
+                        if layout_position >= len(layout_order):
+                            layout_order = shuffled_layout_order(current_layout)
+                            layout_position = 0
+                        current_layout = layout_order[layout_position]
+                        scores = [0, 0]
+                        left_paddle, right_paddle = create_paddles()
+                        bricks = make_bricks(current_layout)
+                        ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+                        ball_spin = 0
+                        last_hit = "START"
+                        round_winner = None
+                        mode = SERVE
+                elif mode == MATCH_OVER:
+                    if event.key in (pygame.K_r, pygame.K_SPACE, pygame.K_RETURN):
+                        scores = [0, 0]
+                        round_wins = [0, 0]
+                        round_number = 1
+                        layout_order = shuffled_layout_order()
+                        layout_position = 0
+                        current_layout = layout_order[layout_position]
+                        left_paddle, right_paddle = create_paddles()
+                        bricks = make_bricks(current_layout)
+                        ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+                        ball_spin = 0
+                        last_hit = "START"
+                        round_winner = None
+                        mode = SERVE
+                    elif event.key == pygame.K_m:
+                        mode = MENU
 
         keys = pygame.key.get_pressed()
 
@@ -295,29 +343,14 @@ def main():
                     mode = SERVE
 
                 if not bricks:
-                    round_winner = 0 if last_hit == "P1" else 1
+                    round_winner = 0 if scores[0] >= scores[1] else 1
                     round_wins[round_winner] += 1
-                    if round_wins[round_winner] >= ROUNDS_TO_WIN:
-                        mode = MATCH_OVER
-                    else:
-                        round_number += 1
-                        layout_position += 1
-                        if layout_position >= len(layout_order):
-                            layout_order = shuffled_layout_order(current_layout)
-                            layout_position = 0
-                        current_layout = layout_order[layout_position]
-                        scores = [0, 0]
-                        left_paddle, right_paddle = create_paddles()
-                        bricks = make_bricks(current_layout)
-                        ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
-                        ball_spin = 0
-                        last_hit = "START"
-                        mode = SERVE
+                    mode = ROUND_OVER
 
         if mode == MENU:
             draw_menu(screen, title_font, ui_font)
         else:
-            draw_game(screen, score_font, ui_font, title_font, left_paddle, right_paddle, ball, bricks, scores, round_wins, round_number, last_hit, mode, server, current_layout)
+            draw_game(screen, score_font, ui_font, title_font, left_paddle, right_paddle, ball, bricks, scores, round_wins, round_number, last_hit, mode, server, current_layout, round_winner)
 
         pygame.display.flip()
 

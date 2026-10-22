@@ -27,7 +27,10 @@ python main.py
 - Player 1: `W` / `S`
 - Player 2: Arrow `Up` / `Down` (two-player mode)
 - `Space` or `Enter`: launch the ball from the serve
-- `R`: return to the menu
+- `P`: pause during gameplay
+- Pause: `P`/`Space` resume, `R` restart round, `M` main menu
+- Round end: `N`/`Space`/`Enter` continue
+- Match end: `R`/`Space`/`Enter` rematch, `M` main menu
 - `Escape`: quit
 
 The game starts at a mode-selection menu. In one-player mode, Player 2 is
