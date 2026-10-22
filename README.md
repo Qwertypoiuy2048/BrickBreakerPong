@@ -36,7 +36,8 @@ paddle of the player with fewer points; ties go to Player 1. The ball waits
 there until `Space` or `Enter` is pressed.
 
 Each match is first to two round wins. Clearing a layout wins the round and
-loads the next layout from `layouts.json`. To add a layout, add another object
+loads the next randomized layout from `layouts.json`; layouts do not repeat
+until the available set has been used. To add a layout, add another object
 with a `name` and a rectangular `pattern`; `1` creates a brick and `0` or `.`
 leaves a space. Higher values such as `2` or `3` give a brick more health and
 change its color. The current layouts use `1`, so all bricks are red. The
@@ -44,6 +45,10 @@ pattern is automatically mirrored for the other side.
 
 The visible player scores reset when a new round begins. The round-win tally
 shown at the top continues across the match.
+
+Paddle movement affects the bounce angle. Moving into the ball transfers spin,
+which gradually fades and is clamped so the ball remains controllable. Spin
+and bounce tuning values are in `settings.py`.
 
 The last player to hit the ball is shown at the bottom. Only that player can
 destroy bricks and receive their points. A ball served from a paddle is marked

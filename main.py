@@ -50,7 +50,18 @@ def prepare_serve(scores, left_paddle, right_paddle):
     return ball, pygame.Vector2(0, 0), server
 
 
+def shuffled_layout_order(previous_layout=None):
+    """Return a randomized layout order, avoiding an immediate repeat."""
+    order = list(range(layout_count()))
+    random.shuffle(order)
+    if previous_layout is not None and len(order) > 1 and order[0] == previous_layout:
+        order[0], order[1] = order[1], order[0]
+    return order
+
+
 def move_paddles(left_paddle, right_paddle, keys, dt, one_player):
+    previous_left_y = left_paddle.y
+    previous_right_y = right_paddle.y
     left_direction = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
     left_paddle.y += round(left_direction * PADDLE_SPEED * dt)
 
@@ -61,14 +72,42 @@ def move_paddles(left_paddle, right_paddle, keys, dt, one_player):
     bounds = pygame.Rect(0, 0, WIDTH, HEIGHT)
     left_paddle.clamp_ip(bounds)
     right_paddle.clamp_ip(bounds)
+    seconds = max(dt, 0.0001)
+    return (
+        (left_paddle.y - previous_left_y) / seconds,
+        (right_paddle.y - previous_right_y) / seconds,
+    )
 
 
 def move_ai(right_paddle, ball, dt):
+    previous_y = right_paddle.y
     if right_paddle.centery < ball.centery:
         right_paddle.y += round(PADDLE_SPEED * AI_SPEED_FACTOR * dt)
     elif right_paddle.centery > ball.centery:
-        right_paddle.y -= round(PADDLE_SPEED * 0.72 * dt)
+        right_paddle.y -= round(PADDLE_SPEED * AI_SPEED_FACTOR * dt)
     right_paddle.clamp_ip(pygame.Rect(0, 0, WIDTH, HEIGHT))
+    return (right_paddle.y - previous_y) / max(dt, 0.0001)
+
+
+def bounce_off_paddle(ball, ball_velocity, paddle, paddle_velocity_y, ball_spin, direction):
+    """Apply hit-position bounce, paddle movement, and transferable spin."""
+    if direction > 0:
+        ball.left = paddle.right
+        ball_velocity.x = abs(ball_velocity.x)
+    else:
+        ball.right = paddle.left
+        ball_velocity.x = -abs(ball_velocity.x)
+
+    hit_offset = ball.centery - paddle.centery
+    ball_spin += paddle_velocity_y * SPIN_TRANSFER
+    ball_spin = max(-MAX_SPIN, min(MAX_SPIN, ball_spin))
+    ball_velocity.y = (
+        hit_offset * 5
+        + paddle_velocity_y * PADDLE_BOUNCE_INFLUENCE
+        + ball_spin * SPIN_BOUNCE_INFLUENCE
+    )
+    ball_velocity.y = max(-MAX_VERTICAL_SPEED, min(MAX_VERTICAL_SPEED, ball_velocity.y))
+    return ball_spin
 
 
 def draw_game(
@@ -87,6 +126,7 @@ def draw_game(
     mode,
     server,
     current_layout,
+    round_winner,
 ):
     screen.fill(BACKGROUND)
     pygame.draw.line(screen, (45, 50, 78), (WIDTH // 2, 0), (WIDTH // 2, HEIGHT), 2)
@@ -106,13 +146,26 @@ def draw_game(
     if mode == SERVE:
         pygame.draw.rect(screen, (0, 0, 0, 150), (0, 0, WIDTH, HEIGHT))
         receiver = "P1" if server == 0 else "P2"
-        draw_text(screen, title_font, f"{receiver} SERVES", (WIDTH // 2, HEIGHT // 2 - 35), center=True)
-        draw_text(screen, ui_font, "Press SPACE or ENTER to launch", (WIDTH // 2, HEIGHT // 2 + 25), MUTED, center=True)
+        draw_text(screen, title_font, f"ROUND {round_number}: {receiver} SERVES", (WIDTH // 2, HEIGHT // 2 - 55), center=True)
+        draw_text(screen, ui_font, f"Layout: {layout_name(current_layout)}", (WIDTH // 2, HEIGHT // 2), MUTED, center=True)
+        draw_text(screen, ui_font, "Press SPACE or ENTER to launch", (WIDTH // 2, HEIGHT // 2 + 40), MUTED, center=True)
+    elif mode == PAUSED:
+        pygame.draw.rect(screen, (0, 0, 0, 175), (0, 0, WIDTH, HEIGHT))
+        draw_text(screen, title_font, "PAUSED", (WIDTH // 2, HEIGHT // 2 - 65), center=True)
+        draw_text(screen, ui_font, "P / SPACE  Resume", (WIDTH // 2, HEIGHT // 2), MUTED, center=True)
+        draw_text(screen, ui_font, "R  Restart round     M  Main menu", (WIDTH // 2, HEIGHT // 2 + 38), MUTED, center=True)
+    elif mode == ROUND_OVER:
+        pygame.draw.rect(screen, (0, 0, 0, 175), (0, 0, WIDTH, HEIGHT))
+        winner = "P1" if round_winner == 0 else "P2"
+        draw_text(screen, title_font, f"{winner} WINS ROUND {round_number}", (WIDTH // 2, HEIGHT // 2 - 60), center=True)
+        draw_text(screen, ui_font, f"Round score: P1 {scores[0]}  -  P2 {scores[1]}", (WIDTH // 2, HEIGHT // 2), MUTED, center=True)
+        draw_text(screen, ui_font, "Press N, SPACE, or ENTER for the next round", (WIDTH // 2, HEIGHT // 2 + 40), MUTED, center=True)
     elif mode == MATCH_OVER:
         pygame.draw.rect(screen, (0, 0, 0, 180), (0, 0, WIDTH, HEIGHT))
         winner = "P1" if round_wins[0] > round_wins[1] else "P2"
         draw_text(screen, title_font, f"{winner} WINS THE MATCH", (WIDTH // 2, HEIGHT // 2 - 35), center=True)
-        draw_text(screen, ui_font, "Press SPACE, ENTER, or R for the menu", (WIDTH // 2, HEIGHT // 2 + 25), MUTED, center=True)
+        draw_text(screen, ui_font, f"Round tally: P1 {round_wins[0]}  -  P2 {round_wins[1]}", (WIDTH // 2, HEIGHT // 2 + 5), MUTED, center=True)
+        draw_text(screen, ui_font, "R / SPACE  Rematch     M  Main menu", (WIDTH // 2, HEIGHT // 2 + 45), MUTED, center=True)
 
 
 def draw_menu(screen, title_font, ui_font):
@@ -121,8 +174,10 @@ def draw_menu(screen, title_font, ui_font):
     draw_text(screen, ui_font, "Choose a game mode", (WIDTH // 2, 260), MUTED, center=True)
     draw_text(screen, ui_font, "1  -  One Player", (WIDTH // 2, 330), PLAYER_ONE_COLOR, center=True)
     draw_text(screen, ui_font, "2  -  Two Players", (WIDTH // 2, 380), PLAYER_TWO_COLOR, center=True)
-    draw_text(screen, ui_font, f"First to {ROUNDS_TO_WIN} rounds wins  |  {layout_count()} layouts available", (WIDTH // 2, 450), MUTED, center=True)
-    draw_text(screen, ui_font, "P1: W/S     P2: Arrow Keys     Esc: Quit", (WIDTH // 2, 525), MUTED, center=True)
+    draw_text(screen, ui_font, f"First to {ROUNDS_TO_WIN} rounds wins  |  {layout_count()} randomized layouts", (WIDTH // 2, 450), MUTED, center=True)
+    draw_text(screen, ui_font, "Settings", (WIDTH // 2, 505), WHITE, center=True)
+    draw_text(screen, ui_font, f"Ball speed: {BALL_SPEED}   |   Spin: On   |   P: Pause", (WIDTH // 2, 535), MUTED, center=True)
+    draw_text(screen, ui_font, "P1: W/S     P2: Arrow Keys     Esc: Quit", (WIDTH // 2, 580), MUTED, center=True)
 
 
 def main():
@@ -138,9 +193,12 @@ def main():
     scores = [0, 0]
     round_wins = [0, 0]
     round_number = 1
-    current_layout = 0
+    layout_order = shuffled_layout_order()
+    layout_position = 0
+    current_layout = layout_order[layout_position]
     bricks = make_bricks(current_layout)
     ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+    ball_spin = 0
     last_hit = "START"
     mode = MENU
     one_player = False
@@ -161,7 +219,9 @@ def main():
                     scores = [0, 0]
                     round_wins = [0, 0]
                     round_number = 1
-                    current_layout = 0
+                    layout_order = shuffled_layout_order()
+                    layout_position = 0
+                    current_layout = layout_order[layout_position]
                     bricks = make_bricks(current_layout)
                     ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
                     last_hit = "START"
@@ -169,6 +229,7 @@ def main():
                 elif mode == SERVE and event.key in (pygame.K_SPACE, pygame.K_RETURN):
                     ball_velocity.x = BALL_SPEED if server == 0 else -BALL_SPEED
                     ball_velocity.y = random.choice((-1, 1)) * BALL_SPEED * 0.65
+                    ball_spin = 0
                     mode = PLAYING
                 elif mode == MATCH_OVER and event.key in (pygame.K_SPACE, pygame.K_RETURN, pygame.K_r):
                     mode = MENU
@@ -178,9 +239,11 @@ def main():
         keys = pygame.key.get_pressed()
 
         if mode in (SERVE, PLAYING):
-            move_paddles(left_paddle, right_paddle, keys, dt, one_player)
+            left_paddle_velocity_y, right_paddle_velocity_y = move_paddles(
+                left_paddle, right_paddle, keys, dt, one_player
+            )
             if one_player:
-                move_ai(right_paddle, ball, dt)
+                right_paddle_velocity_y = move_ai(right_paddle, ball, dt)
 
             if mode == SERVE:
                 attach_ball_to_paddle(ball, left_paddle if server == 0 else right_paddle, server)
@@ -189,20 +252,23 @@ def main():
                 previous_ball = ball.copy()
                 ball.x += round(ball_velocity.x * dt)
                 ball.y += round(ball_velocity.y * dt)
+                ball_spin *= SPIN_DECAY ** (dt * FPS)
+                ball_velocity.y += ball_spin * SPIN_ACCELERATION * dt
+                ball_velocity.y = max(-MAX_VERTICAL_SPEED, min(MAX_VERTICAL_SPEED, ball_velocity.y))
 
                 if ball.top <= 0 or ball.bottom >= HEIGHT:
                     ball_velocity.y *= -1
                     ball.clamp_ip(pygame.Rect(0, 0, WIDTH, HEIGHT))
 
                 if ball_velocity.x < 0 and ball.colliderect(left_paddle):
-                    ball.left = left_paddle.right
-                    ball_velocity.x = abs(ball_velocity.x)
-                    ball_velocity.y = (ball.centery - left_paddle.centery) * 5
+                    ball_spin = bounce_off_paddle(
+                        ball, ball_velocity, left_paddle, left_paddle_velocity_y, ball_spin, 1
+                    )
                     last_hit = "P1"
                 elif ball_velocity.x > 0 and ball.colliderect(right_paddle):
-                    ball.right = right_paddle.left
-                    ball_velocity.x = -abs(ball_velocity.x)
-                    ball_velocity.y = (ball.centery - right_paddle.centery) * 5
+                    ball_spin = bounce_off_paddle(
+                        ball, ball_velocity, right_paddle, right_paddle_velocity_y, ball_spin, -1
+                    )
                     last_hit = "P2"
 
                 for brick in bricks[:]:
@@ -218,11 +284,13 @@ def main():
                 if ball.right < 0:
                     scores[1] += MISS_POINTS
                     ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+                    ball_spin = 0
                     last_hit = "START"
                     mode = SERVE
                 elif ball.left > WIDTH:
                     scores[0] += MISS_POINTS
                     ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+                    ball_spin = 0
                     last_hit = "START"
                     mode = SERVE
 
@@ -233,11 +301,16 @@ def main():
                         mode = MATCH_OVER
                     else:
                         round_number += 1
-                        current_layout = (current_layout + 1) % layout_count()
+                        layout_position += 1
+                        if layout_position >= len(layout_order):
+                            layout_order = shuffled_layout_order(current_layout)
+                            layout_position = 0
+                        current_layout = layout_order[layout_position]
                         scores = [0, 0]
                         left_paddle, right_paddle = create_paddles()
                         bricks = make_bricks(current_layout)
                         ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+                        ball_spin = 0
                         last_hit = "START"
                         mode = SERVE
 
