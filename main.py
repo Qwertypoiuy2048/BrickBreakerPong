@@ -21,6 +21,20 @@ def draw_text(screen, font, message, position, color=WHITE, center=False):
     screen.blit(surface, rectangle)
 
 
+def draw_option(screen, font, message, y, selected, color=MUTED):
+    """Draw a centered menu option with a pointer when selected."""
+    prefix = "> " if selected else "  "
+    draw_text(screen, font, prefix + message, (WIDTH // 2, y), color, center=True)
+
+
+def navigation_delta(key):
+    if key in (pygame.K_UP, pygame.K_w):
+        return -1
+    if key in (pygame.K_DOWN, pygame.K_s):
+        return 1
+    return 0
+
+
 def create_paddles():
     left = pygame.Rect(35, HEIGHT // 2 - PADDLE_HEIGHT // 2, PADDLE_WIDTH, PADDLE_HEIGHT)
     right = pygame.Rect(
@@ -127,6 +141,7 @@ def draw_game(
     server,
     current_layout,
     round_winner,
+    menu_selection,
 ):
     screen.fill(BACKGROUND)
     pygame.draw.line(screen, (45, 50, 78), (WIDTH // 2, 0), (WIDTH // 2, HEIGHT), 2)
@@ -152,32 +167,40 @@ def draw_game(
     elif mode == PAUSED:
         pygame.draw.rect(screen, (0, 0, 0, 175), (0, 0, WIDTH, HEIGHT))
         draw_text(screen, title_font, "PAUSED", (WIDTH // 2, HEIGHT // 2 - 65), center=True)
-        draw_text(screen, ui_font, "P / SPACE  Resume", (WIDTH // 2, HEIGHT // 2), MUTED, center=True)
-        draw_text(screen, ui_font, "R  Restart round     M  Main menu", (WIDTH // 2, HEIGHT // 2 + 38), MUTED, center=True)
+        draw_option(screen, ui_font, "Resume", HEIGHT // 2, menu_selection == 0, WHITE)
+        draw_option(screen, ui_font, "Restart round", HEIGHT // 2 + 38, menu_selection == 1)
+        draw_option(screen, ui_font, "Main menu", HEIGHT // 2 + 76, menu_selection == 2)
+        draw_text(screen, ui_font, "Arrow keys / W A S D to move   Space to select", (WIDTH // 2, HEIGHT // 2 + 125), MUTED, center=True)
     elif mode == ROUND_OVER:
         pygame.draw.rect(screen, (0, 0, 0, 175), (0, 0, WIDTH, HEIGHT))
         winner = "P1" if round_winner == 0 else "P2"
         draw_text(screen, title_font, f"{winner} WINS ROUND {round_number}", (WIDTH // 2, HEIGHT // 2 - 60), center=True)
         draw_text(screen, ui_font, f"Round score: P1 {scores[0]}  -  P2 {scores[1]}", (WIDTH // 2, HEIGHT // 2), MUTED, center=True)
-        draw_text(screen, ui_font, "Press N, SPACE, or ENTER for the next round", (WIDTH // 2, HEIGHT // 2 + 40), MUTED, center=True)
+        draw_option(screen, ui_font, "Continue to next round", HEIGHT // 2 + 45, True, WHITE)
+        draw_text(screen, ui_font, "Press SPACE to select", (WIDTH // 2, HEIGHT // 2 + 85), MUTED, center=True)
     elif mode == MATCH_OVER:
         pygame.draw.rect(screen, (0, 0, 0, 180), (0, 0, WIDTH, HEIGHT))
         winner = "P1" if round_wins[0] > round_wins[1] else "P2"
         draw_text(screen, title_font, f"{winner} WINS THE MATCH", (WIDTH // 2, HEIGHT // 2 - 35), center=True)
         draw_text(screen, ui_font, f"Round tally: P1 {round_wins[0]}  -  P2 {round_wins[1]}", (WIDTH // 2, HEIGHT // 2 + 5), MUTED, center=True)
-        draw_text(screen, ui_font, "R / SPACE  Rematch     M  Main menu", (WIDTH // 2, HEIGHT // 2 + 45), MUTED, center=True)
+        draw_option(screen, ui_font, "Rematch", HEIGHT // 2 + 55, menu_selection == 0, WHITE)
+        draw_option(screen, ui_font, "Main menu", HEIGHT // 2 + 93, menu_selection == 1)
+        draw_text(screen, ui_font, "Arrow keys / W A S D to move   Space to select", (WIDTH // 2, HEIGHT // 2 + 135), MUTED, center=True)
 
 
-def draw_menu(screen, title_font, ui_font):
+def draw_menu(screen, title_font, ui_font, menu_selection, menu_notice):
     screen.fill(BACKGROUND)
     draw_text(screen, title_font, "BRICK BREAKER PONG", (WIDTH // 2, 150), center=True)
-    draw_text(screen, ui_font, "Choose a game mode", (WIDTH // 2, 260), MUTED, center=True)
-    draw_text(screen, ui_font, "1  -  One Player", (WIDTH // 2, 330), PLAYER_ONE_COLOR, center=True)
-    draw_text(screen, ui_font, "2  -  Two Players", (WIDTH // 2, 380), PLAYER_TWO_COLOR, center=True)
-    draw_text(screen, ui_font, f"First to {ROUNDS_TO_WIN} rounds wins  |  {layout_count()} randomized layouts", (WIDTH // 2, 450), MUTED, center=True)
-    draw_text(screen, ui_font, "Settings", (WIDTH // 2, 505), WHITE, center=True)
-    draw_text(screen, ui_font, f"Ball speed: {BALL_SPEED}   |   Spin: On   |   P: Pause", (WIDTH // 2, 535), MUTED, center=True)
-    draw_text(screen, ui_font, "P1: W/S     P2: Arrow Keys     Esc: Quit", (WIDTH // 2, 580), MUTED, center=True)
+    draw_text(screen, ui_font, "Choose an option", (WIDTH // 2, 245), MUTED, center=True)
+    draw_option(screen, ui_font, "One Player", 295, menu_selection == 0, PLAYER_ONE_COLOR)
+    draw_option(screen, ui_font, "Two Players", 335, menu_selection == 1, PLAYER_TWO_COLOR)
+    draw_option(screen, ui_font, "Settings", 375, menu_selection == 2, WHITE)
+    draw_option(screen, ui_font, "Controls", 415, menu_selection == 3, WHITE)
+    draw_text(screen, ui_font, f"First to {ROUNDS_TO_WIN} rounds  |  {layout_count()} randomized layouts", (WIDTH // 2, 475), MUTED, center=True)
+    if menu_notice:
+        draw_text(screen, ui_font, menu_notice, (WIDTH // 2, 510), PLAYER_TWO_COLOR, center=True)
+    draw_text(screen, ui_font, "Arrow keys / W A S D to move   Space to select", (WIDTH // 2, 565), MUTED, center=True)
+    draw_text(screen, ui_font, "Escape: quit", (WIDTH // 2, 600), MUTED, center=True)
 
 
 def main():
@@ -203,6 +226,8 @@ def main():
     round_winner = None
     mode = MENU
     one_player = False
+    menu_selection = 0
+    menu_notice = ""
     running = True
 
     while running:
@@ -213,21 +238,36 @@ def main():
                 running = False
             elif event.type == pygame.KEYDOWN:
                 if event.key == pygame.K_ESCAPE:
-                    running = False
-                elif mode == MENU and event.key in (pygame.K_1, pygame.K_KP1, pygame.K_2, pygame.K_KP2):
-                    one_player = event.key in (pygame.K_1, pygame.K_KP1)
-                    left_paddle, right_paddle = create_paddles()
-                    scores = [0, 0]
-                    round_wins = [0, 0]
-                    round_number = 1
-                    layout_order = shuffled_layout_order()
-                    layout_position = 0
-                    current_layout = layout_order[layout_position]
-                    bricks = make_bricks(current_layout)
-                    ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
-                    last_hit = "START"
-                    round_winner = None
-                    mode = SERVE
+                    if mode == MENU:
+                        running = False
+                    else:
+                        mode = MENU
+                        menu_selection = 0
+                        menu_notice = ""
+                elif mode == MENU and navigation_delta(event.key):
+                    menu_selection = (menu_selection + navigation_delta(event.key)) % 4
+                    menu_notice = ""
+                elif mode == MENU and event.key == pygame.K_SPACE:
+                    if menu_selection in (0, 1):
+                        one_player = menu_selection == 0
+                        left_paddle, right_paddle = create_paddles()
+                        scores = [0, 0]
+                        round_wins = [0, 0]
+                        round_number = 1
+                        layout_order = shuffled_layout_order()
+                        layout_position = 0
+                        current_layout = layout_order[layout_position]
+                        bricks = make_bricks(current_layout)
+                        ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+                        last_hit = "START"
+                        round_winner = None
+                        mode = SERVE
+                        menu_selection = 0
+                        menu_notice = ""
+                    elif menu_selection == 2:
+                        menu_notice = "Settings will be available in a future update."
+                    else:
+                        menu_notice = "Controls will be available in a future update."
                 elif mode == SERVE and event.key in (pygame.K_SPACE, pygame.K_RETURN):
                     ball_velocity.x = BALL_SPEED if server == 0 else -BALL_SPEED
                     ball_velocity.y = random.choice((-1, 1)) * BALL_SPEED * 0.65
@@ -235,22 +275,31 @@ def main():
                     mode = PLAYING
                 elif mode == PLAYING and event.key == pygame.K_p:
                     mode = PAUSED
+                    menu_selection = 0
                 elif mode == PAUSED:
-                    if event.key in (pygame.K_p, pygame.K_SPACE):
+                    if navigation_delta(event.key):
+                        menu_selection = (menu_selection + navigation_delta(event.key)) % 3
+                    elif event.key == pygame.K_SPACE:
+                        if menu_selection == 0:
+                            mode = PLAYING
+                        elif menu_selection == 1:
+                            scores = [0, 0]
+                            left_paddle, right_paddle = create_paddles()
+                            bricks = make_bricks(current_layout)
+                            ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
+                            ball_spin = 0
+                            last_hit = "START"
+                            mode = SERVE
+                        else:
+                            mode = MENU
+                            menu_selection = 0
+                            menu_notice = ""
+                    elif event.key == pygame.K_p:
                         mode = PLAYING
-                    elif event.key == pygame.K_r:
-                        scores = [0, 0]
-                        left_paddle, right_paddle = create_paddles()
-                        bricks = make_bricks(current_layout)
-                        ball, ball_velocity, server = prepare_serve(scores, left_paddle, right_paddle)
-                        ball_spin = 0
-                        last_hit = "START"
-                        mode = SERVE
-                    elif event.key == pygame.K_m:
-                        mode = MENU
-                elif mode == ROUND_OVER and event.key in (pygame.K_n, pygame.K_SPACE, pygame.K_RETURN):
+                elif mode == ROUND_OVER and event.key == pygame.K_SPACE:
                     if round_winner is not None and round_wins[round_winner] >= ROUNDS_TO_WIN:
                         mode = MATCH_OVER
+                        menu_selection = 0
                     else:
                         round_number += 1
                         layout_position += 1
@@ -267,7 +316,9 @@ def main():
                         round_winner = None
                         mode = SERVE
                 elif mode == MATCH_OVER:
-                    if event.key in (pygame.K_r, pygame.K_SPACE, pygame.K_RETURN):
+                    if navigation_delta(event.key):
+                        menu_selection = (menu_selection + navigation_delta(event.key)) % 2
+                    elif event.key == pygame.K_SPACE and menu_selection == 0:
                         scores = [0, 0]
                         round_wins = [0, 0]
                         round_number = 1
@@ -281,8 +332,11 @@ def main():
                         last_hit = "START"
                         round_winner = None
                         mode = SERVE
-                    elif event.key == pygame.K_m:
+                        menu_selection = 0
+                    elif event.key == pygame.K_SPACE and menu_selection == 1:
                         mode = MENU
+                        menu_selection = 0
+                        menu_notice = ""
 
         keys = pygame.key.get_pressed()
 
@@ -348,9 +402,9 @@ def main():
                     mode = ROUND_OVER
 
         if mode == MENU:
-            draw_menu(screen, title_font, ui_font)
+            draw_menu(screen, title_font, ui_font, menu_selection, menu_notice)
         else:
-            draw_game(screen, score_font, ui_font, title_font, left_paddle, right_paddle, ball, bricks, scores, round_wins, round_number, last_hit, mode, server, current_layout, round_winner)
+            draw_game(screen, score_font, ui_font, title_font, left_paddle, right_paddle, ball, bricks, scores, round_wins, round_number, last_hit, mode, server, current_layout, round_winner, menu_selection)
 
         pygame.display.flip()
 

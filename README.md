@@ -23,15 +23,19 @@ python main.py
 
 ## Controls
 
-- Menu: `1` for one player, `2` for two players
+- Menus: Arrow keys or `WASD` move the pointer, `Space` selects
+- Main menu: `Settings` and `Controls` are selectable placeholders for future features
 - Player 1: `W` / `S`
 - Player 2: Arrow `Up` / `Down` (two-player mode)
 - `Space` or `Enter`: launch the ball from the serve
 - `P`: pause during gameplay
-- Pause: `P`/`Space` resume, `R` restart round, `M` main menu
-- Round end: `N`/`Space`/`Enter` continue
-- Match end: `R`/`Space`/`Enter` rematch, `M` main menu
+- Pause: use the pointer to choose resume, restart round, or main menu
+- Round end: `Space` selects continue
+- Match end: use the pointer to choose rematch or main menu
 - `Escape`: quit
+
+Pressing `Escape` during gameplay or on an overlay returns to the main menu.
+Pressing it on the main menu exits the game.
 
 The game starts at a mode-selection menu. In one-player mode, Player 2 is
 controlled by a simple computer opponent. Each serve places the ball on the
