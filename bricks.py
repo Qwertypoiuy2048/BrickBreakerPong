@@ -2,9 +2,7 @@
 
 import json
 from pathlib import Path
-
 import pygame
-
 from settings import (
     BRICK_COLORS,
     CENTER_GAP,

@@ -1,7 +1,6 @@
 """Ball creation and collision helpers."""
 
 import random
-
 import pygame
 
 from settings import BALL_SIZE, BALL_SPEED, HEIGHT, WIDTH

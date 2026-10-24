@@ -2,7 +2,6 @@
 
 import random
 import sys
-
 import pygame
 
 from ball import bounce_off_brick
