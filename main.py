@@ -12,6 +12,7 @@ from settings import *  # noqa: F403 - game constants are kept in one place.
 
 
 def draw_text(screen, font, message, position, color=WHITE, center=False):
+    """Render text at a top-left position or centered position."""
     surface = font.render(message, True, color)
     rectangle = surface.get_rect()
     if center:
@@ -28,6 +29,7 @@ def draw_option(screen, font, message, y, selected, color=MUTED):
 
 
 def navigation_delta(key):
+    """Return -1 or 1 for vertical menu navigation keys."""
     if key in (pygame.K_UP, pygame.K_w):
         return -1
     if key in (pygame.K_DOWN, pygame.K_s):
@@ -36,6 +38,7 @@ def navigation_delta(key):
 
 
 def adjustment_delta(key):
+    """Return -1 or 1 for horizontal setting-adjustment keys."""
     if key in (pygame.K_LEFT, pygame.K_a):
         return -1
     if key in (pygame.K_RIGHT, pygame.K_d):
@@ -44,6 +47,7 @@ def adjustment_delta(key):
 
 
 def create_paddles():
+    """Create the left and right paddles in their starting positions."""
     left = pygame.Rect(35, HEIGHT // 2 - PADDLE_HEIGHT // 2, PADDLE_WIDTH, PADDLE_HEIGHT)
     right = pygame.Rect(
         WIDTH - 35 - PADDLE_WIDTH,
@@ -82,6 +86,7 @@ def shuffled_layout_order(previous_layout=None):
 
 
 def move_paddles(left_paddle, right_paddle, keys, dt, one_player):
+    """Move human-controlled paddles and return their vertical velocities."""
     previous_left_y = left_paddle.y
     previous_right_y = right_paddle.y
     left_direction = int(keys[pygame.K_s]) - int(keys[pygame.K_w])
@@ -102,6 +107,7 @@ def move_paddles(left_paddle, right_paddle, keys, dt, one_player):
 
 
 def move_ai(right_paddle, ball, dt):
+    """Move the computer-controlled paddle toward the ball."""
     previous_y = right_paddle.y
     if right_paddle.centery < ball.centery:
         right_paddle.y += round(PADDLE_SPEED * AI_SPEED_FACTOR * dt)
@@ -142,12 +148,11 @@ def bounce_off_paddle(
     if spin_mode == "Position":
         ball_velocity.y = position_bounce
     elif spin_mode == "Spin":
-        ball_velocity.y = ((
+        ball_velocity.y = (
             incoming_vertical_speed
             + movement_bounce
             + ball_spin * SPIN_BOUNCE_INFLUENCE
-            ) * 0.98 # resistance
-        )
+        ) * 0.9  # Resistance keeps spin mode controllable.
     else:
         ball_velocity.y = position_bounce + movement_bounce + ball_spin * SPIN_BOUNCE_INFLUENCE
     ball_velocity.y = max(-max_vertical_speed, min(max_vertical_speed, ball_velocity.y))
@@ -173,6 +178,7 @@ def draw_game(
     round_winner,
     menu_selection,
 ):
+    """Draw the playfield and the overlay for the current game state."""
     screen.fill(BACKGROUND)
     pygame.draw.line(screen, (45, 50, 78), (WIDTH // 2, 0), (WIDTH // 2, HEIGHT), 2)
     pygame.draw.rect(screen, PLAYER_ONE_COLOR, left_paddle, border_radius=5)
@@ -182,7 +188,14 @@ def draw_game(
 
     draw_text(screen, score_font, str(scores[0]), (WIDTH // 4, 18), PLAYER_ONE_COLOR, center=True)
     draw_text(screen, score_font, str(scores[1]), (WIDTH * 3 // 4, 18), PLAYER_TWO_COLOR, center=True)
-    draw_text(screen, ui_font, f"Round {round_number}  |  Wins {round_wins[0]} - {round_wins[1]}", (WIDTH // 2, 18), MUTED, center=True)
+    draw_text(
+        screen,
+        ui_font,
+        f"Round {round_number}  |  Wins {round_wins[0]} - {round_wins[1]}",
+        (WIDTH // 2, 18),
+        MUTED,
+        center=True,
+    )
     draw_text(screen, ui_font, f"Layout: {layout_name(current_layout)}", (WIDTH // 2, 48), MUTED, center=True)
     draw_text(screen, ui_font, "P1: W/S", (25, HEIGHT - 35), PLAYER_ONE_COLOR)
     draw_text(screen, ui_font, "P2: Arrow Keys", (WIDTH - 155, HEIGHT - 35), PLAYER_TWO_COLOR)
@@ -191,7 +204,13 @@ def draw_game(
     if mode == SERVE:
         pygame.draw.rect(screen, (0, 0, 0, 150), (0, 0, WIDTH, HEIGHT))
         receiver = "P1" if server == 0 else "P2"
-        draw_text(screen, title_font, f"ROUND {round_number}: {receiver} SERVES", (WIDTH // 2, HEIGHT // 2 - 55), center=True)
+        draw_text(
+            screen,
+            title_font,
+            f"ROUND {round_number}: {receiver} SERVES",
+            (WIDTH // 2, HEIGHT // 2 - 55),
+            center=True,
+        )
         draw_text(screen, ui_font, f"Layout: {layout_name(current_layout)}", (WIDTH // 2, HEIGHT // 2), MUTED, center=True)
         draw_text(screen, ui_font, "Press SPACE or ENTER to launch", (WIDTH // 2, HEIGHT // 2 + 40), MUTED, center=True)
     elif mode == PAUSED:
@@ -200,7 +219,14 @@ def draw_game(
         draw_option(screen, ui_font, "Resume", HEIGHT // 2, menu_selection == 0, WHITE)
         draw_option(screen, ui_font, "Restart round", HEIGHT // 2 + 38, menu_selection == 1)
         draw_option(screen, ui_font, "Main menu", HEIGHT // 2 + 76, menu_selection == 2)
-        draw_text(screen, ui_font, "Arrow keys / W A S D to move   Space to select", (WIDTH // 2, HEIGHT // 2 + 125), MUTED, center=True)
+        draw_text(
+            screen,
+            ui_font,
+            "Arrow keys / W A S D to move   Space to select",
+            (WIDTH // 2, HEIGHT // 2 + 125),
+            MUTED,
+            center=True,
+        )
     elif mode == ROUND_OVER:
         pygame.draw.rect(screen, (0, 0, 0, 175), (0, 0, WIDTH, HEIGHT))
         winner = "P1" if round_winner == 0 else "P2"
@@ -215,10 +241,18 @@ def draw_game(
         draw_text(screen, ui_font, f"Round tally: P1 {round_wins[0]}  -  P2 {round_wins[1]}", (WIDTH // 2, HEIGHT // 2 + 5), MUTED, center=True)
         draw_option(screen, ui_font, "Rematch", HEIGHT // 2 + 55, menu_selection == 0, WHITE)
         draw_option(screen, ui_font, "Main menu", HEIGHT // 2 + 93, menu_selection == 1)
-        draw_text(screen, ui_font, "Arrow keys / W A S D to move   Space to select", (WIDTH // 2, HEIGHT // 2 + 135), MUTED, center=True)
+        draw_text(
+            screen,
+            ui_font,
+            "Arrow keys / W A S D to move   Space to select",
+            (WIDTH // 2, HEIGHT // 2 + 135),
+            MUTED,
+            center=True,
+        )
 
 
 def draw_menu(screen, title_font, ui_font, menu_selection, menu_notice, rounds_to_win):
+    """Draw the main menu and its selectable game-mode options."""
     screen.fill(BACKGROUND)
     draw_text(screen, title_font, "BRICK BREAKER PONG", (WIDTH // 2, 150), center=True)
     draw_text(screen, ui_font, "Choose an option", (WIDTH // 2, 245), MUTED, center=True)
@@ -234,6 +268,7 @@ def draw_menu(screen, title_font, ui_font, menu_selection, menu_notice, rounds_t
 
 
 def draw_settings_screen(screen, title_font, ui_font, menu_selection, rounds_to_win, ball_speed_index, spin_mode_index):
+    """Draw the settings menu and the currently selected option values."""
     screen.fill(BACKGROUND)
     draw_text(screen, title_font, "SETTINGS", (WIDTH // 2, 105), center=True)
     draw_option(screen, ui_font, f"Rounds to win: {rounds_to_win}", 210, menu_selection == 0, WHITE)
@@ -246,6 +281,7 @@ def draw_settings_screen(screen, title_font, ui_font, menu_selection, rounds_to_
 
 
 def main():
+    """Run the Pygame event loop and coordinate all game states."""
     pygame.init()
     pygame.display.set_caption("Brick Breaker Pong")
     screen = pygame.display.set_mode((WIDTH, HEIGHT))
@@ -283,6 +319,8 @@ def main():
             if event.type == pygame.QUIT:
                 running = False
             elif event.type == pygame.KEYDOWN:
+                navigation = navigation_delta(event.key)
+                adjustment = adjustment_delta(event.key)
                 if event.key == pygame.K_ESCAPE:
                     if mode == MENU:
                         running = False
@@ -290,8 +328,8 @@ def main():
                         mode = MENU
                         menu_selection = 0
                         menu_notice = ""
-                elif mode == MENU and navigation_delta(event.key):
-                    menu_selection = (menu_selection + navigation_delta(event.key)) % 4
+                elif mode == MENU and navigation:
+                    menu_selection = (menu_selection + navigation) % 4
                     menu_notice = ""
                 elif mode == MENU and event.key == pygame.K_SPACE:
                     if menu_selection in (0, 1):
@@ -316,10 +354,10 @@ def main():
                         menu_notice = ""
                     else:
                         menu_notice = "Controls will be available in a future update."
-                elif mode == SETTINGS and navigation_delta(event.key):
-                    menu_selection = (menu_selection + navigation_delta(event.key)) % 5
-                elif mode == SETTINGS and adjustment_delta(event.key):
-                    change = adjustment_delta(event.key)
+                elif mode == SETTINGS and navigation:
+                    menu_selection = (menu_selection + navigation) % 5
+                elif mode == SETTINGS and adjustment:
+                    change = adjustment
                     if menu_selection == 0:
                         rounds_index = ROUND_OPTIONS.index(rounds_to_win)
                         rounds_to_win = ROUND_OPTIONS[(rounds_index + change) % len(ROUND_OPTIONS)]
@@ -346,8 +384,8 @@ def main():
                     mode = PAUSED
                     menu_selection = 0
                 elif mode == PAUSED:
-                    if navigation_delta(event.key):
-                        menu_selection = (menu_selection + navigation_delta(event.key)) % 3
+                    if navigation:
+                        menu_selection = (menu_selection + navigation) % 3
                     elif event.key == pygame.K_SPACE:
                         if menu_selection == 0:
                             mode = PLAYING
@@ -385,8 +423,8 @@ def main():
                         round_winner = None
                         mode = SERVE
                 elif mode == MATCH_OVER:
-                    if navigation_delta(event.key):
-                        menu_selection = (menu_selection + navigation_delta(event.key)) % 2
+                    if navigation:
+                        menu_selection = (menu_selection + navigation) % 2
                     elif event.key == pygame.K_SPACE and menu_selection == 0:
                         scores = [0, 0]
                         round_wins = [0, 0]

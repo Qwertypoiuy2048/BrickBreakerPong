@@ -26,7 +26,7 @@ def reset_ball(direction=None):
 
 
 def bounce_off_brick(ball, velocity, brick, previous_ball):
-    """Bounce from the side of a brick that the ball entered first."""
+    """Bounce from the first side of a brick that the ball entered."""
     hit_from_top_or_bottom = (
         previous_ball.bottom <= brick.top or previous_ball.top >= brick.bottom
     )

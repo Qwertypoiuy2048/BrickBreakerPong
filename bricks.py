@@ -22,14 +22,17 @@ class Brick:
     """A brick with a position and a number of hits remaining."""
 
     def __init__(self, rectangle, health):
+        """Store the brick rectangle and its remaining hit points."""
         self.rect = rectangle
         self.health = health
 
     def hit(self):
+        """Remove one hit point from the brick."""
         self.health -= 1
 
     @property
     def destroyed(self):
+        """Return whether the brick has no hit points remaining."""
         return self.health <= 0
 
 
@@ -86,15 +89,18 @@ def make_bricks(layout_index=0):
 
 
 def layout_name(layout_index=0):
+    """Return the display name for a layout index."""
     layouts = load_layouts()
     return layouts[layout_index % len(layouts)].get("name", f"Layout {layout_index + 1}")
 
 
 def layout_count():
+    """Return the number of layouts currently available in the JSON file."""
     return len(load_layouts())
 
 
 def draw_bricks(screen, brick_list):
+    """Draw each brick using a color based on its remaining health."""
     for brick in brick_list:
         color_index = min(brick.health, len(BRICK_COLORS)) - 1
         pygame.draw.rect(screen, BRICK_COLORS[color_index], brick.rect, border_radius=4)
